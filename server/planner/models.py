@@ -1,0 +1,141 @@
+from django.contrib.auth.models import AbstractUser
+from django.db import models
+
+
+class User(AbstractUser):
+	email = models.EmailField("email address", max_length=254, blank=False, null=False, unique=True)
+	max_daily_hours = models.PositiveIntegerField(default=8)
+	name = models.CharField(max_length=100)
+
+
+class Subject(models.Model):
+	"""
+	Represents an academic subject or category for activities.
+	Required by the Coordinator for database normalization.
+	"""
+
+	# Django automatically creates an 'id' primary key field.
+	user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="subjects")
+	name = models.CharField(max_length=100, help_text="The name of the subject")
+	creation_date = models.DateTimeField(
+		auto_now_add=True, help_text="Timestamp when the subject was created"
+	)
+
+	class Meta:
+		verbose_name = "Subject"
+		verbose_name_plural = "Subjects"
+		ordering = ["-creation_date"]
+		indexes = [
+			models.Index(fields=["-creation_date"]),
+			models.Index(fields=["name"]),
+		]
+
+	def __str__(self):
+		return self.name
+
+
+class Activity(models.Model):
+	user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="activities")
+	subject = models.ForeignKey(
+		Subject,
+		on_delete=models.SET_NULL,
+		null=True,
+		blank=True,
+		related_name="activities",
+		help_text="Linked academic subject",
+	)
+	title = models.CharField(max_length=200)
+	course_name = models.CharField(max_length=200)
+	description = models.TextField()
+	due_date = models.DateField()
+	status = models.CharField(max_length=50)
+	created_at = models.DateTimeField(auto_now_add=True)
+	updated_at = models.DateTimeField(auto_now=True)
+
+	class Meta:
+		indexes = [
+			models.Index(fields=["user", "due_date"]),
+			models.Index(fields=["user", "status"]),
+		]
+
+	def __str__(self):
+		return self.title
+
+
+class Subtask(models.Model):
+	activity_id = models.ForeignKey(Activity, on_delete=models.CASCADE, related_name="subtasks")
+	name = models.CharField(max_length=200)
+	estimated_hours = models.PositiveIntegerField()
+	target_date = models.DateField()
+	status = models.CharField(max_length=50)
+	ordering = models.PositiveIntegerField()
+	created_at = models.DateTimeField(auto_now_add=True)
+	updated_at = models.DateTimeField(auto_now=True)
+
+	class Meta:
+		indexes = [
+			models.Index(fields=["target_date", "status"]),
+			models.Index(fields=["activity_id", "status"]),
+			# Covers the bulk conflict-evaluation aggregation:
+			# WHERE activity_id__user=X AND status IN (...) GROUP BY target_date
+			models.Index(fields=["activity_id", "target_date", "status"]),
+		]
+
+	def __str__(self):
+		return self.name
+
+
+class Progress(models.Model):
+	user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="progress_entries")
+	activity = models.ForeignKey(
+		Activity, on_delete=models.CASCADE, related_name="progress_entries"
+	)
+	subtask = models.ForeignKey(Subtask, on_delete=models.CASCADE, related_name="progress_entries")
+	status = models.CharField(max_length=50)
+	note = models.TextField()
+	recorded_at = models.DateTimeField(auto_now_add=True)
+
+	def __str__(self):
+		return f"Progress {self.id}"
+
+
+class Conflict(models.Model):
+	user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="conflicts")
+	affected_date = models.DateField()
+	type = models.CharField(max_length=100)
+	planned_hours = models.PositiveIntegerField()
+	max_allowed_hours = models.PositiveIntegerField()
+	status = models.CharField(max_length=50)
+	detected_at = models.DateTimeField(auto_now_add=True)
+
+	class Meta:
+		indexes = [
+			models.Index(fields=["user", "affected_date", "status"]),
+		]
+
+	def __str__(self):
+		return f"Conflict {self.id} ({self.type})"
+
+
+class ConflictResolution(models.Model):
+	conflict = models.OneToOneField(Conflict, on_delete=models.CASCADE, related_name="resolution")
+	action = models.CharField(max_length=100)
+	description = models.TextField()
+	resolved_at = models.DateTimeField(auto_now_add=True)
+
+	def __str__(self):
+		return f"Resolution for conflict {self.conflict.id}"
+
+
+class UserOnboarding(models.Model):
+	user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="onboarding")
+	has_seen_tour = models.BooleanField(default=False)
+	has_seen_org_tour = models.BooleanField(default=False)
+	has_seen_progress_tour = models.BooleanField(default=False)
+	has_seen_conflict_tour = models.BooleanField(default=False)
+
+	class Meta:
+		db_table = "onboarding_user"
+
+	def __str__(self):
+		return f"Onboarding for {self.user.username}"

@@ -1,0 +1,353 @@
+from datetime import date
+
+from rest_framework import serializers
+
+from .models import Activity, Conflict, Subject, Subtask, User, UserOnboarding
+
+
+class UserOnboardingSerializer(serializers.ModelSerializer):
+	class Meta:
+		model = UserOnboarding
+		fields = [
+			"has_seen_tour",
+			"has_seen_org_tour",
+			"has_seen_progress_tour",
+			"has_seen_conflict_tour",
+		]
+
+
+class UserSerializer(serializers.ModelSerializer):
+	onboarding = serializers.SerializerMethodField()
+
+	class Meta:
+		model = User
+		# include readable name and the user's max daily hours
+		fields = ["id", "username", "email", "name", "max_daily_hours", "date_joined", "onboarding"]
+
+	def get_onboarding(self, obj):
+		onboarding, _ = UserOnboarding.objects.get_or_create(user=obj)
+		return UserOnboardingSerializer(onboarding).data
+
+
+class SubtaskSerializer(serializers.ModelSerializer):
+	name = serializers.CharField(required=True, allow_blank=True)
+	status = serializers.CharField(required=False, allow_blank=True, default="pending")
+	target_date = serializers.DateField(required=True)
+	ordering = serializers.IntegerField(required=False, default=0)
+
+	class Meta:
+		model = Subtask
+		fields = [
+			"id",
+			"name",
+			"estimated_hours",
+			"target_date",
+			"status",
+			"ordering",
+			"created_at",
+			"updated_at",
+		]
+		read_only_fields = ["id", "created_at", "updated_at"]
+
+	def validate(self, attrs):
+		errors = {}
+
+		if "name" in attrs:
+			name = attrs["name"].strip()
+			if not name:
+				errors["name"] = "Name is required"
+
+		if "status" in attrs:
+			status = attrs["status"]
+			allowed_statuses = ["pending", "completed", "in_progress", "postponed"]
+			if status not in allowed_statuses:
+				errors["status"] = f"Invalid status type. Must be one of: {allowed_statuses}"
+
+		if "target_date" in attrs:
+			target_date = attrs["target_date"]
+			# No past-date restriction — users may create/edit overdue subtasks
+
+			activity = self.context.get("activity")
+			# Only enforce the due-date ceiling when the activity itself is not already overdue.
+			# If the activity is past-due, allow subtasks with any future target_date.
+			if activity and target_date > activity.due_date and activity.due_date >= date.today():
+				errors["target_date"] = (
+					f"Target date cannot be later than the activity due date ({activity.due_date})"
+				)
+
+		if "estimated_hours" in attrs:
+			estimated_hours = attrs["estimated_hours"]
+			if estimated_hours < 0:
+				errors["estimated_hours"] = "Estimated hours must be zero or a positive number"
+
+		if errors:
+			raise serializers.ValidationError({"errors": errors})
+
+		return attrs
+
+
+class ActivitySerializer(serializers.ModelSerializer):
+	total_estimated_hours = serializers.SerializerMethodField()
+	subtask_count = serializers.SerializerMethodField()
+	completed_subtasks_count = serializers.SerializerMethodField()
+	total_subtasks_count = serializers.SerializerMethodField()
+	subtasks = SubtaskSerializer(many=True, required=False)
+
+	description = serializers.CharField(required=False, allow_blank=True)
+
+	class Meta:
+		model = Activity
+		fields = [
+			"id",
+			"user",
+			"title",
+			"course_name",
+			"description",
+			"due_date",
+			"status",
+			"subtasks",
+			"subtask_count",
+			"total_estimated_hours",
+			"completed_subtasks_count",
+			"total_subtasks_count",
+		]
+		read_only_fields = [
+			"id",
+			"user",
+			"subtask_count",
+			"total_estimated_hours",
+			"completed_subtasks_count",
+			"total_subtasks_count",
+		]
+
+	def validate(self, attrs):
+		errors = {}
+
+		if "title" in attrs:
+			title = attrs.get("title", "").strip()
+			if not title:
+				errors["title"] = "Title is required"
+
+		if "course_name" in attrs:
+			course_name = attrs.get("course_name", "").strip()
+			if not course_name:
+				errors["course_name"] = "Course name is required"
+
+		if "status" in attrs:
+			status = attrs.get("status")
+			allowed_statuses = ["pending", "completed", "in_progress", "postponed"]
+			if status not in allowed_statuses:
+				errors["status"] = f"Invalid status type. Must be one of: {allowed_statuses}"
+
+		if "due_date" in attrs:
+			pass  # No past-date restriction — users may create overdue activities
+
+		if errors:
+			raise serializers.ValidationError({"errors": errors})
+
+		return attrs
+
+	def get_total_estimated_hours(self, obj) -> int:
+		# Sum estimated_hours across related subtasks.
+		subtasks = obj.subtasks.all()
+		if len(subtasks) > 0:
+			return int(sum(s.estimated_hours for s in subtasks))
+		# fallback to any client-provided value stored on the instance
+		client_val = getattr(obj, "_client_total_estimated_hours", None)
+		if client_val is not None:
+			try:
+				return int(client_val)
+			except Exception:
+				return 0
+		return 0
+
+	def get_completed_subtasks_count(self, obj) -> int:
+		# Use the annotated value from get_queryset when available (no extra query)
+		annotated = getattr(obj, "_completed_subtasks", None)
+		if annotated is not None:
+			return annotated
+		return obj.subtasks.filter(status="completed").count()
+
+	def get_total_subtasks_count(self, obj) -> int:
+		# Use the annotated value from get_queryset when available (no extra query)
+		annotated = getattr(obj, "_total_subtasks", None)
+		if annotated is not None:
+			return annotated
+		return obj.subtasks.count()
+
+	def get_subtask_count(self, obj) -> int:
+		# Kept for backward compatibility — delegates to total_subtasks_count
+		return self.get_total_subtasks_count(obj)
+
+	#  Moved `create` method to ActivitySerializer to handle nested writes
+	def create(self, validated_data):
+		# Handle nested subtasks if provided
+		subtasks_data = validated_data.pop("subtasks", [])
+		# capture any client-provided total_estimated_hours (not stored in DB)
+		client_total = None
+		try:
+			# access raw input data available on the serializer
+			client_total = self.initial_data.get("total_estimated_hours")
+		except Exception:
+			client_total = None
+		# `user` may be supplied by the view via serializer.save(user=...)
+		activity = Activity.objects.create(**validated_data)
+		for idx, s in enumerate(subtasks_data, start=1):
+			# ensure ordering if not provided
+			ordering = s.get("ordering", idx)
+			Subtask.objects.create(
+				activity_id=activity,
+				name=s.get("name", ""),
+				estimated_hours=s.get("estimated_hours", 0) or 0,
+				target_date=s.get("target_date"),
+				status=s.get("status", "pending"),
+				ordering=ordering,
+			)
+		# If no subtasks were created but the client provided a total, keep it
+		# on the instance so the SerializerMethodField can return it in the response.
+		if not subtasks_data and client_total is not None:
+			try:
+				activity._client_total_estimated_hours = int(client_total)
+			except Exception:
+				activity._client_total_estimated_hours = None
+		return activity
+
+
+# Serializer used by TodayView — adds activity context to each subtask
+class TodaySubtaskSerializer(SubtaskSerializer):
+	activity = serializers.SerializerMethodField()
+	course_name = serializers.SerializerMethodField()
+
+	class Meta(SubtaskSerializer.Meta):
+		fields = [*SubtaskSerializer.Meta.fields, "activity", "course_name"]
+
+	def get_activity(self, obj) -> dict:
+		act = obj.activity_id  # ForeignKey named activity_id → related Activity object
+		return {"id": act.pk, "title": act.title}
+
+	def get_course_name(self, obj) -> str:
+		return obj.activity_id.course_name
+
+
+# Note: a single SubtaskSerializer is defined above for nested use in ActivitySerializer.
+
+
+class SubjectSerializer(serializers.ModelSerializer):
+	class Meta:
+		model = Subject
+		fields = ["id", "name", "creation_date"]
+		read_only_fields = ["id", "creation_date"]
+
+	def validate_name(self, value):
+		if not value.strip():
+			raise serializers.ValidationError("Subject name cannot be empty.")
+		return value.strip()
+
+
+class UserRegistrationSerializer(serializers.Serializer):
+	username = serializers.CharField(max_length=150)
+	email = serializers.EmailField(required=True, allow_blank=False)
+	password = serializers.CharField(write_only=True, min_length=8)
+	password_confirm = serializers.CharField(write_only=True)
+
+	def validate_username(self, value):
+		normalized_username = value.strip()
+		if not normalized_username:
+			raise serializers.ValidationError("El nombre de usuario es obligatorio.")
+		if User.objects.filter(username__iexact=normalized_username).exists():
+			raise serializers.ValidationError("Este nombre de usuario ya está en uso.")
+		return normalized_username
+
+	def validate_email(self, value):
+		normalized_email = value.strip().lower()
+		if not normalized_email:
+			raise serializers.ValidationError("El correo es obligatorio.")
+		if User.objects.filter(email__iexact=normalized_email).exists():
+			raise serializers.ValidationError("Este correo ya está en uso.")
+		return normalized_email
+
+	def validate(self, attrs):
+		if attrs["password"] != attrs["password_confirm"]:
+			raise serializers.ValidationError({"password_confirm": "Las contraseñas no coinciden."})
+		return attrs
+
+	def create(self, validated_data):
+		validated_data.pop("password_confirm")
+		user = User.objects.create_user(
+			username=validated_data["username"],
+			email=validated_data["email"],
+			password=validated_data["password"],
+		)
+		return user
+
+
+class ConflictSerializer(serializers.ModelSerializer):
+	class Meta:
+		model = Conflict
+		fields = [
+			"id",
+			"affected_date",
+			"planned_hours",
+			"max_allowed_hours",
+			"status",
+			"detected_at",
+		]
+		read_only_fields = [
+			"id",
+			"affected_date",
+			"planned_hours",
+			"max_allowed_hours",
+			"status",
+			"detected_at",
+		]
+
+
+class UserUpdateSerializer(serializers.ModelSerializer):
+	onboarding = UserOnboardingSerializer(required=False)
+
+	class Meta:
+		model = User
+		fields = ["max_daily_hours", "onboarding"]
+
+	def update(self, instance, validated_data):
+		onboarding_data = validated_data.pop("onboarding", None)
+		instance = super().update(instance, validated_data)
+
+		if onboarding_data is not None:
+			onboarding, _ = UserOnboarding.objects.get_or_create(user=instance)
+			for attr, value in onboarding_data.items():
+				setattr(onboarding, attr, value)
+			onboarding.save()
+
+		return instance
+
+	def validate_max_daily_hours(self, value: int) -> int:
+		if value < 1:
+			raise serializers.ValidationError("max_daily_hours must be at least 1.")
+		return value
+
+
+class ConflictResolveSerializer(serializers.Serializer):
+	ACTION_REDUCE = "reduce_hours"
+	ACTION_RESCHEDULE = "reschedule"
+	ACTION_CHOICES = [ACTION_REDUCE, ACTION_RESCHEDULE]
+
+	subtask_id = serializers.IntegerField()
+	action_type = serializers.ChoiceField(choices=ACTION_CHOICES)
+	new_hours = serializers.IntegerField(min_value=0, required=False)
+	new_date = serializers.DateField(required=False)
+
+	def validate(self, attrs):
+		action_type = attrs["action_type"]
+		errors = {}
+
+		if action_type == self.ACTION_REDUCE and attrs.get("new_hours") is None:
+			errors["new_hours"] = "Required when action_type is 'reduce_hours'."
+
+		if action_type == self.ACTION_RESCHEDULE and attrs.get("new_date") is None:
+			errors["new_date"] = "Required when action_type is 'reschedule'."
+
+		if errors:
+			raise serializers.ValidationError({"errors": errors})
+
+		return attrs
