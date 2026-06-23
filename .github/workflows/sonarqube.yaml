@@ -1,0 +1,43 @@
+name: SonarQube analysis
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+jobs:
+  sonarqubeScanFrontend:
+    name: SonarQubeScan1
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v7
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: client
+          args: |
+            -Dsonar.projectKey=jeangiraldoo_vida_academica_DSII
+            -Dsonar.organization=jeangiraldoo
+
+  sonarqubeScanBackend:
+    name: SonarQubeScan2
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v7
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: server
+          args: |
+            -Dsonar.projectKey=jeangiraldoo_vida_academica_DSII
+            -Dsonar.organization=jeangiraldoo
