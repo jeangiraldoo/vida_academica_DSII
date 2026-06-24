@@ -15,6 +15,15 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+
+      - name: install deps
+        run: npm install
+        working-directory: client
+
+      - name: Run tests with coverage
+        run: npm run test:coverage
+        working-directory: client
+
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v7
         env:
@@ -24,6 +33,7 @@ jobs:
           args: |
             -Dsonar.projectKey=jeangiraldoo_vida_academica_DSII
             -Dsonar.organization=jeangiraldoo
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
 
   sonarqubeScanBackend:
     name: SonarQubeScan2
@@ -32,6 +42,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v7
         env:
