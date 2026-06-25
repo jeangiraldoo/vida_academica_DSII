@@ -7,11 +7,13 @@ vi.mock("react-joyride", () => {
 	return {
 		__esModule: true,
 		default: (props: Record<string, unknown>) => {
-			(window as unknown as { __lastJoyrideProps: Record<string, unknown> }).__lastJoyrideProps = props;
+			(window as unknown as { __lastJoyrideProps: Record<string, unknown> }).__lastJoyrideProps =
+				props;
 			return null;
 		},
 		Joyride: (props: Record<string, unknown>) => {
-			(window as unknown as { __lastJoyrideProps: Record<string, unknown> }).__lastJoyrideProps = props;
+			(window as unknown as { __lastJoyrideProps: Record<string, unknown> }).__lastJoyrideProps =
+				props;
 			return null;
 		},
 		STATUS: { FINISHED: "finished", SKIPPED: "skipped" },
