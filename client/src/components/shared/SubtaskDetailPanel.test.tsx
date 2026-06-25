@@ -1,5 +1,6 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { vi } from "vitest";
+import type { Subtask } from "@/api/dashboard";
 import { SubtaskDetailPanel } from "./SubtaskDetailPanel";
 
 const sampleSubtask = {
@@ -14,7 +15,7 @@ const sampleSubtask = {
 	postponement_note: "",
 	created_at: "2026-06-20T08:00:00.000Z",
 	updated_at: "2026-06-21T09:00:00.000Z",
-} as any;
+} as Subtask;
 
 describe("SubtaskDetailPanel", () => {
 	test("renders details and calls onClose when close button clicked", () => {
@@ -36,8 +37,12 @@ describe("SubtaskDetailPanel", () => {
 		);
 
 		expect(screen.getByTestId("subtask-detail-title")).toHaveTextContent(sampleSubtask.name);
-		expect(screen.getByTestId("subtask-detail-course")).toHaveTextContent(sampleSubtask.course_name);
-		expect(screen.getByTestId("subtask-detail-activity")).toHaveTextContent(sampleSubtask.activity.title);
+		expect(screen.getByTestId("subtask-detail-course")).toHaveTextContent(
+			sampleSubtask.course_name,
+		);
+		expect(screen.getByTestId("subtask-detail-activity")).toHaveTextContent(
+			sampleSubtask.activity.title,
+		);
 		expect(screen.getByTestId("subtask-detail-hours")).toHaveTextContent("3h");
 
 		fireEvent.click(screen.getByTestId("subtask-detail-close-btn"));
