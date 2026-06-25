@@ -32,6 +32,9 @@ venv/
 # JavaScript
 **/node_modules/
 
+# << Testing >>
+**/coverage/
+
 # << Debugging/logs >>
 *.log*
 
