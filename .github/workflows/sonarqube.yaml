@@ -33,10 +33,6 @@ jobs:
           args: |
             -Dsonar.projectKey=jeangiraldoo_vida_academica_DSII
             -Dsonar.organization=jeangiraldoo
-            -Dsonar.sources=src
-            -Dsonar.tests=src
-            -Dsonar.test.inclusions=**/*.test.ts,**/*.test.tsx
-            -Dsonar.coverage.exclusions=**/*.test.ts,**/*.test.tsx,src/test/**,vite.config.ts,src/main.tsx
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
 
   sonarqubeScanBackend:
