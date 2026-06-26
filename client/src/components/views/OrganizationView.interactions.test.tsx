@@ -63,7 +63,9 @@ const handlers = () => ({
 	onLoadMore: vi.fn().mockResolvedValue(undefined),
 });
 
-function renderView(opts: { light?: boolean; props?: Partial<React.ComponentProps<typeof OrganizationView>> } = {}) {
+function renderView(
+	opts: { light?: boolean; props?: Partial<React.ComponentProps<typeof OrganizationView>> } = {},
+) {
 	if (opts.light) localStorage.setItem("luma_theme", "light");
 	const h = handlers();
 	render(
