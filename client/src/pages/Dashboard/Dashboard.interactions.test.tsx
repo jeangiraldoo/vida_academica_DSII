@@ -5,11 +5,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // ── Mocks ─────────────────────────────────────────────────────────────────
 const navigateMock = vi.hoisted(() => vi.fn());
 const updateMeMock = vi.hoisted(() => vi.fn());
+const pathRef = vi.hoisted(() => ({ current: "/hoy" }));
 
 vi.mock("react-router-dom", () => ({
 	useNavigate: () => navigateMock,
-	useLocation: () => ({ pathname: "/hoy" }),
+	useLocation: () => ({ pathname: pathRef.current }),
 	useParams: () => ({}),
+	useSearchParams: () => [new URLSearchParams("")],
 }));
 
 vi.mock("@/api/auth", () => ({
@@ -99,6 +101,7 @@ async function renderLoaded(onLogout = vi.fn()) {
 beforeEach(() => {
 	vi.clearAllMocks();
 	updateMeMock.mockResolvedValue(fixtures.user);
+	pathRef.current = "/hoy";
 	localStorage.clear();
 });
 
@@ -139,6 +142,20 @@ describe("Dashboard — estado cargado", () => {
 	it("abre el menú de perfil", async () => {
 		await renderLoaded();
 		fireEvent.click(screen.getByTestId("dashboard-profile-menu-btn"));
+	});
+});
+
+describe("Dashboard — vistas por ruta", () => {
+	it("renderiza la vista de organización", async () => {
+		pathRef.current = "/organizacion";
+		await renderLoaded();
+		expect(screen.getByTestId("org-view")).toBeInTheDocument();
+	});
+
+	it("renderiza la vista de progreso", async () => {
+		pathRef.current = "/progreso";
+		await renderLoaded();
+		expect(screen.getByTestId("dashboard-progress-view")).toBeInTheDocument();
 	});
 });
 
