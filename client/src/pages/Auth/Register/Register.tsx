@@ -99,7 +99,7 @@ export default function Register() {
 			});
 
 			// Auto-login after successful registration
-			const tokenRes = await client.post("/api/token/", {
+			const tokenRes = await client.post("/token/", {
 				username: form.username,
 				password: form.password,
 			});
