@@ -25,14 +25,22 @@ jobs:
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }}
           --password-stdin
 
-      - name: Build
-        working-directory: server/
-        run: docker image build -t vida_academica-backend .
-
-      - name: Push image
+      - name: Build backend image
+        working-directory: server
         run: |
-          IMAGE_ID=ghcr.io/${{ github.repository_owner }}/vida_academica-backend:1.0:${{ github.run_id }}
-          docker push "${IMAGE_ID}"
+          IMAGE_ID=ghcr.io/${{ github.repository_owner }}/vida_academica-backend
+
+          docker build \
+            -t ${IMAGE_ID}:${{ github.sha }} \
+            -t ${IMAGE_ID}:latest \
+            .
+
+      - name: Push backend image
+        run: |
+          IMAGE_ID=ghcr.io/${{ github.repository_owner }}/vida_academica-backend
+
+          docker push ${IMAGE_ID}:${{ github.sha }}
+          docker push ${IMAGE_ID}:latest
 
   build-frontend-image:
     name: Build frontend container image
@@ -45,11 +53,19 @@ jobs:
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }}
           --password-stdin
 
-      - name: Build
-        working-directory: client/
-        run: docker image build -t vida_academica-frontend .
-
-      - name: Push image
+      - name: Build frontend image
+        working-directory: client
         run: |
-          IMAGE_ID=ghcr.io/${{ github.repository_owner }}/vida_academica-frontend:1.0:${{ github.run_id }}
-          docker push "${IMAGE_ID}"
+          IMAGE_ID=ghcr.io/${{ github.repository_owner }}/vida_academica-frontend
+
+          docker build \
+            -t ${IMAGE_ID}:${{ github.sha }} \
+            -t ${IMAGE_ID}:latest \
+            .
+
+      - name: Push frontend image
+        run: |
+          IMAGE_ID=ghcr.io/${{ github.repository_owner }}/vida_academica-frontend
+
+          docker push ${IMAGE_ID}:${{ github.sha }}
+          docker push ${IMAGE_ID}:latest
