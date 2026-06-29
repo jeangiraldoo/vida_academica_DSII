@@ -1,0 +1,51 @@
+---
+name: Build docker image
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "client/"
+      - "src/"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-backend-image:
+    name: Build backend container image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log into the GitHub container registry
+        run: docker login https://ghcr.io -u ${{ github.actor }} ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build
+        working-directory: server/
+        run: docker image build -t vida_academica-backend .
+
+      - name: Push image
+        run: |
+          IMAGE_ID=ghcr.io/${{ github.repository_owner }}/vida_academica-backend:1.0:${{ github.run_id }}
+          docker push "${IMAGE_ID}"
+
+  build-frontend-image:
+    name: Build frontend container image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log into the GitHub container registry
+        run: docker login https://ghcr.io -u ${{ github.actor }} ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build
+        working-directory: client/
+        run: docker image build -t vida_academica-frontend .
+
+      - name: Push image
+        run: |
+          IMAGE_ID=ghcr.io/${{ github.repository_owner }}/vida_academica-frontend:1.0:${{ github.run_id }}
+          docker push "${IMAGE_ID}"
