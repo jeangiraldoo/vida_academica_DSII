@@ -1,4 +1,3 @@
----
 name: Build container image
 
 on:
@@ -6,24 +5,27 @@ on:
     branches:
       - main
     paths:
-      - "client/"
-      - "server/"
+      - "client/**"
+      - "server/**"
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+  packages: write
 
 jobs:
   build-backend-image:
     name: Build backend container image
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Log into the GitHub Container Registry
-        run:
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }}
-          --password-stdin
+      - name: Log into GitHub Container Registry
+        run: |
+          echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io \
+            -u "${{ github.actor }}" \
+            --password-stdin
 
       - name: Build backend image
         working-directory: server
@@ -45,13 +47,15 @@ jobs:
   build-frontend-image:
     name: Build frontend container image
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Log into the GitHub Container Registry
-        run:
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }}
-          --password-stdin
+      - name: Log into GitHub Container Registry
+        run: |
+          echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io \
+            -u "${{ github.actor }}" \
+            --password-stdin
 
       - name: Build frontend image
         working-directory: client
