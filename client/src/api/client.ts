@@ -2,7 +2,7 @@ import axios from "axios";
 import { clearAuthStorage, getAccessToken, getRefreshToken, setAccessToken } from "./auth";
 
 const baseURL =
-	(import.meta.env.VITE_API_BASE_URL as string) ?? "https://proyecto-integrador-as97.onrender.com/";
+	(import.meta.env.VITE_API_BASE_URL as string) ?? "/api";
 
 const client = axios.create({
 	baseURL,
@@ -36,7 +36,7 @@ client.interceptors.response.use(
 
 			if (refreshToken) {
 				try {
-					const response = await axios.post(`${baseURL}/api/token/refresh/`, {
+					const response = await axios.post(`${baseURL}/token/refresh/`, {
 						refresh: refreshToken,
 					});
 

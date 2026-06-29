@@ -1,0 +1,19 @@
+FROM python:3.14.6-bookworm
+
+WORKDIR /backend
+
+EXPOSE 8000
+
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:${PATH}"
+
+COPY pyproject.toml pyproject.toml
+COPY uv.lock uv.lock
+RUN uv sync
+
+COPY . .
+
+RUN uv run manage.py makemigrations
+RUN uv run manage.py migrate
+
+CMD ["uv", "run", "python", "manage.py", "runserver", "0.0.0.0:8000", "--noreload"]

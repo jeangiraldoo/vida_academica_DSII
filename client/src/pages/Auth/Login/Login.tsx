@@ -76,7 +76,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
 
 		setIsLoading(true);
 		try {
-			const response = await client.post("/api/token/", {
+			const response = await client.post("/token/", {
 				identifier: username.trim(),
 				password,
 			});

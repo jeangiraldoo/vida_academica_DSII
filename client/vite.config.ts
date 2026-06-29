@@ -5,6 +5,16 @@ import { fileURLToPath, URL } from "node:url";
 // https://vite.dev/config/
 export default defineConfig({
 	plugins: [react()],
+	server: {
+		host: true,
+		allowedHosts: ["frontend"],
+		proxy: {
+			"/api": {
+				target: "http://backend:8000",
+				changeOrigin: true,
+			},
+		},
+	},
 	test: {
 		environment: "jsdom",
 		globals: true,

@@ -157,7 +157,7 @@ describe("Login — login exitoso", () => {
 		});
 		fireEvent.submit(screen.getByTestId("login-form"));
 		await waitFor(() => {
-			expect(clientPostMock).toHaveBeenCalledWith("/api/token/", {
+			expect(clientPostMock).toHaveBeenCalledWith("/token/", {
 				identifier: "jean",
 				password: "superjean",
 			});
