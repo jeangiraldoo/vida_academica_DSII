@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: vida-frontend
+  labels:
+    app: vida-frontend
+spec:
+  type: ClusterIP
+  selector:
+    app: vida-frontend
+    track: blue
+  ports:
+    - name: http
+      port: 80
+      targetPort: 5173

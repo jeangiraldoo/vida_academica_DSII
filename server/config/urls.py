@@ -1,10 +1,16 @@
 from django.contrib import admin
 from django.urls import include, path
+from django.http import JsonResponse
 from drf_spectacular.utils import OpenApiExample, extend_schema, extend_schema_view
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from planner.views import EmailOrUsernameTokenObtainPairView
+
+
+def health_check(request):
+	return JsonResponse({"status": "ok"})
+
 
 # add schema examples for token endpoints
 EmailOrUsernameTokenObtainPairView = extend_schema_view(
@@ -58,6 +64,7 @@ TokenRefreshView = extend_schema_view(
 )(TokenRefreshView)
 
 urlpatterns = [
+	path("health", health_check, name="health"),
 	path("admin/", admin.site.urls),
 	path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
 	path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),

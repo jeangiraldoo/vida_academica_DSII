@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vida-frontend-blue
+  labels:
+    app: vida-frontend
+    track: blue
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: vida-frontend
+      track: blue
+  template:
+    metadata:
+      labels:
+        app: vida-frontend
+        track: blue
+    spec:
+      containers:
+        - name: vida-frontend
+          image: vida-frontend:local
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 5173
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 5173
+            initialDelaySeconds: 8
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 5173
+            initialDelaySeconds: 20
+            periodSeconds: 10
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vida-frontend-green
+  labels:
+    app: vida-frontend
+    track: green
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: vida-frontend
+      track: green
+  template:
+    metadata:
+      labels:
+        app: vida-frontend
+        track: green
+    spec:
+      containers:
+        - name: vida-frontend
+          image: vida-frontend:local
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 5173
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 5173
+            initialDelaySeconds: 8
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 5173
+            initialDelaySeconds: 20
+            periodSeconds: 10

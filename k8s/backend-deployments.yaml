@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vida-backend-blue
+  labels:
+    app: vida-backend
+    track: blue
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: vida-backend
+      track: blue
+  template:
+    metadata:
+      labels:
+        app: vida-backend
+        track: blue
+    spec:
+      containers:
+        - name: vida-backend
+          image: vida-backend:local
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 8
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 20
+            periodSeconds: 10
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vida-backend-green
+  labels:
+    app: vida-backend
+    track: green
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: vida-backend
+      track: green
+  template:
+    metadata:
+      labels:
+        app: vida-backend
+        track: green
+    spec:
+      containers:
+        - name: vida-backend
+          image: vida-backend:local
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 8
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 20
+            periodSeconds: 10
